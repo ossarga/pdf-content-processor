@@ -1,0 +1,10 @@
+# directories to ignore
+.idea
+.DS_Store
+
+# files to ignore
+*.pdf
+*.txt
+**/*.md
+
+!README.md
