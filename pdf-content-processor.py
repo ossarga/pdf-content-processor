@@ -134,7 +134,6 @@ class DocumentParser:
             verbose=True,
             invalidate_cache=True,
             do_not_cache=True,
-            continuous_mode=True,
         )
 
     def _generate_raw_output(self, input_document_paths, output_markdown_raw_dir_path, output_name, output_images_dir_path):
