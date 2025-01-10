@@ -417,7 +417,6 @@ class DocumentLoader:
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description='Processes a PDF file to extract its information using LlamaParse into markdown, and optionally load into an Astra Vector Database.')
     arg_parser.add_argument('document_path', help='Path to the PDF file to parse.')
-    arg_parser.add_argument('--document_title', help='Title of the document.', default='')
     arg_parser.add_argument('--parsing_token_file_path', help='Path to the file containing the API token.')
     arg_parser.add_argument('--parsing_instructions_path', help='Path to text file containing the parsing instructions.')
     arg_parser.add_argument('--parsing_retries', help='Number of times to attempt to parse a document before giving up. Default is 3.', default=3)
