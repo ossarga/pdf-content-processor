@@ -130,7 +130,7 @@ class DocumentParser:
 
         self.llama_parse_parser = lp.LlamaParse(
             api_key=self.llama_parse_api_key,
-            result_type='markdown',
+            result_type=lp.ResultType.MD,
             parsing_instruction=self.llama_parse_instructions,
             verbose=True,
             invalidate_cache=True,
@@ -169,6 +169,7 @@ class DocumentParser:
     def _extract_document_content_with_llm(self, document_path):
         logging.info('Parsing document {}'.format(document_path))
         retry_count = 0
+        job_response = []
         while retry_count < self.parsing_retries:
             # Attempt to parse the document using the LlamaParse API
             job_response = self.llama_parse_parser.get_json_result(document_path)
@@ -189,7 +190,8 @@ class DocumentParser:
 
         return job_response
 
-    def _remove_markdown_markers_and_whitespace(self, page_markdown):
+    @staticmethod
+    def _remove_markdown_markers_and_whitespace(page_markdown):
         processed_page = page_markdown
 
         if processed_page.startswith('```markdown'):
@@ -308,12 +310,14 @@ class DocumentParser:
 
         return constructed_pages
 
-    def _write_markdown_page(self, file_path, markdown_output):
+    @staticmethod
+    def _write_markdown_page(file_path, markdown_output):
         with open(file_path, 'w',encoding='utf-8') as file_out_h:
             file_out_h.write(markdown_output)
             file_out_h.write('\n\n')
 
-    def _append_markdown_page(self, file_path, markdown_output):
+    @staticmethod
+    def _append_markdown_page(file_path, markdown_output):
         with open(file_path, 'a',encoding='utf-8') as file_out_h:
             file_out_h.write(markdown_output)
             file_out_h.write('\n\n')
@@ -322,7 +326,8 @@ class DocumentParser:
         image_info_list = self.llama_parse_parser.get_images(parser_result, download_path=file_image_dir)
         return [llcs.ImageDocument(image_path=image_info['path']) for image_info in image_info_list]
 
-    def _process_images(self, images_dir_path):
+    @staticmethod
+    def _process_images(images_dir_path):
         image_files = []
         if images_dir_path:
             image_files = [
