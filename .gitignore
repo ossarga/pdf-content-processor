@@ -1,6 +1,8 @@
 # directories to ignore
 .idea
 .DS_Store
+.py_env
+documents/
 
 # files to ignore
 *.pdf
