@@ -4,12 +4,14 @@ import argparse
 import json
 import os
 import re
+import sys
 
 import astrapy as ap
 import llama_parse as lp
 import llama_index.core.schema as llcs
 import PyPDF2 as pp2
 
+from datetime import datetime
 
 class DocumentSplitter:
     @staticmethod
@@ -33,7 +35,7 @@ class DocumentSplitter:
             split_documents.append(output_doc_path)
 
             if os.path.exists(output_doc_path):
-                print('Skipping {} as it already exists.'.format(output_doc_path))
+                print('{} - Skipping {} as it already exists.'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], output_doc_path))
                 continue
 
             pdf_writer = pp2.PdfWriter()
@@ -43,7 +45,7 @@ class DocumentSplitter:
             with open(output_doc_path, "wb") as output_pdf:
                 pdf_writer.write(output_pdf)
 
-            print('Created {} containing pages {} to {}.'.format(output_doc_path, start_page + 1, end_page))
+            print('{} - Created {} containing pages {} to {}.'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], output_doc_path, start_page + 1, end_page))
 
         return split_documents
 
@@ -93,7 +95,7 @@ class DocumentParser:
         markdown_page_files = self._process_raw_markdown(output_markdown_raw_dir_path, base_output_doc_name)
         image_files = self._process_images(output_images_dir_path)
 
-        print('Document title set to "{}"'.format(self.document_title))
+        print('{} - Document title set to "{}"'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3], self.document_title))
 
         # The 'pages' key contains a list of dictionaries. Each dictionary contains information about a page in document
         # path to the processed markdown information for a page and the document page number
@@ -107,7 +109,7 @@ class DocumentParser:
             with open(token_file, 'r') as file_h:
                 self.llama_parse_api_key = file_h.read().strip()
         else:
-            print('ERROR: No LlamaParse token provided. Token required to parse data.')
+            print('{} - ERROR: No LlamaParse token provided. Token required to parse data.'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]))
             exit(1)
 
         if instructions_file:
@@ -125,7 +127,7 @@ class DocumentParser:
                     elif response[0] == 'n':
                         exit(0)
 
-                print("Invalid input. Please enter 'Y' to continue, or 'N' to abort.")
+                print("{} - Invalid input. Please enter 'Y' to continue, or 'N' to abort.".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]))
 
         self.llama_parse_parser = lp.LlamaParse(
             api_key=self.llama_parse_api_key,
@@ -137,19 +139,23 @@ class DocumentParser:
         )
 
     def _generate_raw_output(self, input_document_paths, output_markdown_raw_dir_path, output_name, output_images_dir_path):
-        for document_path in input_document_paths:
+        for iteration_index, document_path in enumerate(input_document_paths, start=1):
             document_content = self._extract_document_content_with_llm(document_path)
             if not document_content:
                 continue
 
             print(document_content[0]['job_metadata'])
 
+            # Format the iteration index as a two-digit string
+            iteration_str = str(iteration_index).zfill(2)
+
             for extracted_content in document_content[0]['pages']:
                 extracted_markdown = self._remove_markdown_markers_and_whitespace(extracted_content['md'])
                 self._write_markdown_page(
-                    '{}/{}_page_{}.md'.format(
+                    '{}/{}_{}_page_{}.md'.format(
                         output_markdown_raw_dir_path,
                         output_name,
+                        iteration_str,
                         str(extracted_content['page']).zfill(3)
                     ),
                     extracted_markdown
@@ -162,7 +168,7 @@ class DocumentParser:
                 )
 
     def _extract_document_content_with_llm(self, document_path):
-        print('Parsing document {}'.format(document_path))
+        print('{} - Parsing document {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],document_path))
         retry_count = 0
         while retry_count < self.parsing_retries:
             # Attempt to parse the document using the LlamaParse API
@@ -176,10 +182,10 @@ class DocumentParser:
 
         if len(job_response) < 1:
             if self.abort_on_failure:
-                print('Failed to parse document after {} retries. Aborting.'.format(self.parsing_retries))
+                print('{} - Failed to parse document after {} retries. Aborting.'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],self.parsing_retries))
                 exit(1)
             else:
-                print('Failed to parse document after {} retries. Skipping.'.format(self.parsing_retries))
+                print('{} - Failed to parse document after {} retries. Skipping.'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],self.parsing_retries))
                 return None
 
         return job_response
@@ -206,11 +212,14 @@ class DocumentParser:
         page_type = None
         for raw_markdown_file in markdown_raw_page_files:
             raw_markdown_file_path = os.path.join(raw_markdown_dir_path, raw_markdown_file)
-            with open(raw_markdown_file_path, 'r') as raw_markdown_file_h:
+
+            # Open the file with UTF-8 encoding
+            with open(raw_markdown_file_path, 'r',encoding='utf-8') as raw_markdown_file_h:
                 raw_markdown = raw_markdown_file_h.read()
 
-                print('Parsing markdown content for page {}'.format(raw_markdown_file_path))
+                print('{} - Parsing markdown content for page {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],raw_markdown_file_path))
                 extracted_markdown_pages = self._parse_markdown(raw_markdown, page_num, page_type)
+
                 for markdown_page in extracted_markdown_pages:
                     # Store for the current page the number and type. The previous raw markdown page for this nested
                     # loop iteration may flow on to the current raw markdown page. Storing the page number and type
@@ -220,10 +229,10 @@ class DocumentParser:
                     output_page_path = '{}_page_{}.md'.format(base_output_doc_name, str(page_num).zfill(3))
 
                     if os.path.exists(output_page_path):
-                        print('Appending markdown page {}'.format(output_page_path))
+                        print('{} - Appending markdown page {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],output_page_path))
                         self._append_markdown_page(output_page_path, markdown_page['md'])
                     else:
-                        print('Writing markdown page {}'.format(output_page_path))
+                        print('{} - Writing markdown page {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],output_page_path))
                         self._write_markdown_page(output_page_path, markdown_page['md'])
 
                         # Only add to the page files list if we have a new page. Otherwise, we will have duplicate
@@ -294,19 +303,19 @@ class DocumentParser:
         elif page_type == 'title':
             if not self.document_title:
                 self.document_title = ' '.join(page_buffer).title().strip()
-                print('Extracting document title from page {}'.format(str(page_number).zfill(3)))
+                print('{} - Extracting document title from page {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],str(page_number).zfill(3)))
         elif page_type == 'contents' or page_type == 'blank':
-            print('Skipping page {} as it is a {} page'.format(str(page_number).zfill(3), page_type))
+            print('{} - Skipping page {} as it is a {} page'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],str(page_number).zfill(3), page_type))
 
         return constructed_pages
 
     def _write_markdown_page(self, file_path, markdown_output):
-        with open(file_path, 'w') as file_out_h:
+        with open(file_path, 'w',encoding='utf-8') as file_out_h:
             file_out_h.write(markdown_output)
             file_out_h.write('\n\n')
 
     def _append_markdown_page(self, file_path, markdown_output):
-        with open(file_path, 'a') as file_out_h:
+        with open(file_path, 'a',encoding='utf-8') as file_out_h:
             file_out_h.write(markdown_output)
             file_out_h.write('\n\n')
 
@@ -338,19 +347,19 @@ class DocumentLoader:
                 astra_token = json.loads(file_h.read())
                 self.astra_token = astra_token['token']
         else:
-            print('ERROR: No Astra token provided. Token required to load data.')
+            print('{} - ERROR: No Astra token provided. Token required to load data.'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]))
             exit(1)
 
         if astra_db_id:
             self.astra_db_id = astra_db_id
         else:
-            print('ERROR: No Astra database ID provided. Database ID required to load data.')
+            print('{} - ERROR: No Astra database ID provided. Database ID required to load data.'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]))
             exit(1)
 
         if astra_region:
             self.astra_region = astra_region
         else:
-            print('ERROR: No Astra region provided. Region required to load data.')
+            print('{} - ERROR: No Astra region provided. Region required to load data.'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]))
             exit(1)
 
         self.astra_api_endpoint = 'https://{}-{}.{}'.format(
@@ -368,13 +377,13 @@ class DocumentLoader:
         # [{'page': page_num, 'path': output_page_path}, ...]
         collection_pages = []
         for page_info in document_pages:
-            print('Preparing to load page: {}'.format(page_info['path']))
-            with open(page_info['path'], 'r') as page_file_h:
+            print('{} - Preparing to load page: {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],page_info['path']))
+            with open(page_info['path'], 'r', encoding='utf-8') as page_file_h:
                 md_chunks = self._split_page_into_chunks(page_file_h.read())
 
             page_parts = len(md_chunks)
             if page_parts > 1:
-                print('Page {} has been split into {} parts'.format(page_info['page'], page_parts))
+                print('{} - Page {} has been split into {} parts'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],page_info['page'], page_parts))
 
             for chunk_i, chunk_v in enumerate(md_chunks):
                 if page_parts > 1:
@@ -432,9 +441,11 @@ if __name__ == '__main__':
 
     parsed_args = arg_parser.parse_args()
 
-    print('Processing document {}'.format(parsed_args.document_path))
+    print(f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+
+    print('{} - Processing document {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],parsed_args.document_path))
     base_output_dir = '.'.join(parsed_args.document_path.split('.')[:-1])
-    print('Generated artifacts will be stored in {}'.format(base_output_dir))
+    print('{} - Generated artifacts will be stored in {}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],base_output_dir))
     base_output_name = base_output_dir.split('/')[-1]
 
     source_output_dir = os.path.join(base_output_dir, 'source')
@@ -463,7 +474,7 @@ if __name__ == '__main__':
     if parsed_args.skip_llm_parsing:
         split_document_path_list = []
     else:
-        print('Splitting document into smaller documents')
+        print('{} - Splitting document into smaller documents'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]))
         document_splitter = DocumentSplitter()
         split_document_path_list = document_splitter.split_document(parsed_args.document_path, source_output_dir)
 
@@ -507,4 +518,4 @@ if __name__ == '__main__':
             document_content['pages']
         )
 
-    print('Processing complete!')
+    print('{} - Processing complete!'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]))
